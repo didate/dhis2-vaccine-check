@@ -24,11 +24,24 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.dhis2.vaccinecheck.MainActivity;
 import com.dhis2.vaccinecheck.R;
+import com.dhis2.vaccinecheck.data.service.ActivityStarter;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+
+import io.reactivex.disposables.Disposable;
 
 public class LoginActivity extends AppCompatActivity {
 
     private LoginViewModel loginViewModel;
+    private Disposable disposable;
+
+     TextInputEditText serverUrlEditText ;
+     TextInputEditText usernameEditText ;
+     TextInputEditText passwordEditText ;
+     MaterialButton loginButton ;
+     ProgressBar loadingProgressBar;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -37,45 +50,40 @@ public class LoginActivity extends AppCompatActivity {
         loginViewModel = new ViewModelProvider(this, new LoginViewModelFactory())
                 .get(LoginViewModel.class);
 
-        final EditText usernameEditText = findViewById(R.id.username);
-        final EditText passwordEditText = findViewById(R.id.password);
-        final Button loginButton = findViewById(R.id.login);
-        final ProgressBar loadingProgressBar = findViewById(R.id.loading);
+        serverUrlEditText = findViewById(R.id.urlText);
+         usernameEditText = findViewById(R.id.usernameText);
+        passwordEditText = findViewById(R.id.passwordText);
+         loginButton = findViewById(R.id.loginButton);
+        loadingProgressBar = findViewById(R.id.loginProgressBar);
 
-        loginViewModel.getLoginFormState().observe(this, new Observer<LoginFormState>() {
-            @Override
-            public void onChanged(@Nullable LoginFormState loginFormState) {
-                if (loginFormState == null) {
-                    return;
-                }
+        loginViewModel.getLoginFormState().observe(this, loginFormState-> {
+            if (loginFormState == null) {
+                return;
+            }
                 loginButton.setEnabled(loginFormState.isDataValid());
+            if(loginFormState.getServerUrlError() != null){
+                serverUrlEditText.setError(getString(loginFormState.getServerUrlError()));
+            }
                 if (loginFormState.getUsernameError() != null) {
-                    usernameEditText.setError(getString(loginFormState.getUsernameError()));
-                }
+                usernameEditText.setError(getString(loginFormState.getUsernameError()));
+            }
                 if (loginFormState.getPasswordError() != null) {
-                    passwordEditText.setError(getString(loginFormState.getPasswordError()));
-                }
+                passwordEditText.setError(getString(loginFormState.getPasswordError()));
             }
         });
 
-        loginViewModel.getLoginResult().observe(this, new Observer<LoginResult>() {
-            @Override
-            public void onChanged(@Nullable LoginResult loginResult) {
-                if (loginResult == null) {
-                    return;
-                }
-                loadingProgressBar.setVisibility(View.GONE);
-                if (loginResult.getError() != null) {
-                    showLoginFailed(loginResult.getError());
-                }
-                if (loginResult.getSuccess() != null) {
-                    updateUiWithUser(loginResult.getSuccess());
-                }
-                setResult(Activity.RESULT_OK);
-
-                //Complete and destroy login activity once successful
-                finish();
+        loginViewModel.getLoginResult().observe(this, loginResult-> {
+           if (loginResult == null) {
+                return;
             }
+           loadingProgressBar.setVisibility(View.GONE);
+           if (loginResult.getError() != null) {
+                showLoginFailed(loginResult.getError());
+            }
+           if (loginResult.getSuccess() != null) {
+               ActivityStarter.startActivity(this, MainActivity.getMainActivityIntent(this),true);
+            }
+            setResult(Activity.RESULT_OK);
         });
 
         TextWatcher afterTextChangedListener = new TextWatcher() {
@@ -91,10 +99,13 @@ public class LoginActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
-                loginViewModel.loginDataChanged(usernameEditText.getText().toString(),
+                loginViewModel.loginDataChanged(
+                        serverUrlEditText.getText().toString(),
+                        usernameEditText.getText().toString(),
                         passwordEditText.getText().toString());
             }
         };
+        serverUrlEditText.addTextChangedListener(afterTextChangedListener);
         usernameEditText.addTextChangedListener(afterTextChangedListener);
         passwordEditText.addTextChangedListener(afterTextChangedListener);
         passwordEditText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -102,21 +113,27 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    loginViewModel.login(usernameEditText.getText().toString(),
-                            passwordEditText.getText().toString());
+                    login();
                 }
                 return false;
             }
         });
 
-        loginButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loadingProgressBar.setVisibility(View.VISIBLE);
-                loginViewModel.login(usernameEditText.getText().toString(),
-                        passwordEditText.getText().toString());
-            }
-        });
+        loginButton.setOnClickListener(v -> login());
+
+    }
+
+    private void login() {
+        loadingProgressBar.setVisibility(View.VISIBLE);
+        loginButton.setVisibility(View.INVISIBLE);
+        String username = usernameEditText.getText().toString();
+        String password = passwordEditText.getText().toString();
+        String serverUrl = serverUrlEditText.getText().toString();
+
+        disposable = loginViewModel
+                .login(username, password, serverUrl)
+                .doOnTerminate(() -> loginButton.setVisibility(View.VISIBLE))
+                .subscribe(u -> {}, t -> {});
     }
 
     private void updateUiWithUser(LoggedInUserView model) {
@@ -125,11 +142,11 @@ public class LoginActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), welcome, Toast.LENGTH_LONG).show();
     }
 
-    private void showLoginFailed(@StringRes Integer errorString) {
+    private void showLoginFailed(String errorString) {
         Toast.makeText(getApplicationContext(), errorString, Toast.LENGTH_SHORT).show();
     }
 
-    public static Intent getMainActivityIntent(Context context){
+    public static Intent getLoginActivityIntent(Context context){
         return new Intent(context, LoginActivity.class);
     }
 }

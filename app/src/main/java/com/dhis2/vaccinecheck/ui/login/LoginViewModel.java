@@ -6,10 +6,18 @@ import androidx.lifecycle.ViewModel;
 
 import android.util.Patterns;
 
+import com.dhis2.vaccinecheck.data.sdk.Sdk;
 import com.dhis2.vaccinecheck.ui.login.data.LoginRepository;
 import com.dhis2.vaccinecheck.ui.login.data.Result;
 import com.dhis2.vaccinecheck.ui.login.data.model.LoggedInUser;
 import com.dhis2.vaccinecheck.R;
+
+import org.hisp.dhis.android.core.maintenance.D2Error;
+import org.hisp.dhis.android.core.user.User;
+
+import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
 
 public class LoginViewModel extends ViewModel {
 
@@ -29,41 +37,56 @@ public class LoginViewModel extends ViewModel {
         return loginResult;
     }
 
-    public void login(String username, String password) {
-        // can be launched in a separate asynchronous job
-        Result<LoggedInUser> result = loginRepository.login(username, password);
-
-        if (result instanceof Result.Success) {
-            LoggedInUser data = ((Result.Success<LoggedInUser>) result).getData();
-            loginResult.setValue(new LoginResult(new LoggedInUserView(data.getDisplayName())));
-        } else {
-            loginResult.setValue(new LoginResult(R.string.login_failed));
-        }
+    public Single<User> login(String username, String password, String serverUrl) {
+        return Sdk.d2().userModule().logIn(username, password, serverUrl)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSuccess(user -> {
+                    if (user != null) {
+                        loginResult.postValue(new LoginResult(user));
+                    } else {
+                        loginResult.postValue(new LoginResult("Login error: no user"));
+                    }
+                })
+                .doOnError(throwable -> {
+                    String errorCode = "";
+                    try {
+                        D2Error d2Error = (D2Error) throwable;
+                        errorCode = ": " + d2Error.errorCode();
+                    } catch (Exception e) {
+                    }
+                    loginResult.postValue(new LoginResult("Login error" + errorCode));
+                    throwable.printStackTrace();
+                });
     }
 
-    public void loginDataChanged(String username, String password) {
+    public void loginDataChanged(String serverUrl, String username, String password) {
+        if(!isServerUrlValid(serverUrl)){
+            loginFormState.setValue((new LoginFormState(R.string.invalid_server_url,null, null)));
+        }
         if (!isUserNameValid(username)) {
-            loginFormState.setValue(new LoginFormState(R.string.invalid_username, null));
+            loginFormState.setValue(new LoginFormState(null,R.string.invalid_username, null));
         } else if (!isPasswordValid(password)) {
-            loginFormState.setValue(new LoginFormState(null, R.string.invalid_password));
+            loginFormState.setValue(new LoginFormState(null,null, R.string.invalid_password));
         } else {
             loginFormState.setValue(new LoginFormState(true));
         }
     }
 
-    // A placeholder username validation check
+    private boolean isServerUrlValid(String serverUrl) {
+        if (serverUrl == null) {
+            return false;
+        }
+        return Patterns.WEB_URL.matcher(serverUrl).matches();
+    }
+
     private boolean isUserNameValid(String username) {
         if (username == null) {
             return false;
         }
-        if (username.contains("@")) {
-            return Patterns.EMAIL_ADDRESS.matcher(username).matches();
-        } else {
-            return !username.trim().isEmpty();
-        }
+        return !username.trim().isEmpty();
     }
 
-    // A placeholder password validation check
     private boolean isPasswordValid(String password) {
         return password != null && password.trim().length() > 5;
     }

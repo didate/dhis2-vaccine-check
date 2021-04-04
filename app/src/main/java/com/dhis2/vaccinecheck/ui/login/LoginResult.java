@@ -2,30 +2,33 @@ package com.dhis2.vaccinecheck.ui.login;
 
 import androidx.annotation.Nullable;
 
+import org.hisp.dhis.android.core.user.User;
+
 /**
  * Authentication result : success (user details) or error message.
  */
 class LoginResult {
     @Nullable
-    private LoggedInUserView success;
-    @Nullable
-    private Integer error;
+    private User success;
 
-    LoginResult(@Nullable Integer error) {
+    @Nullable
+    private String error;
+
+    LoginResult(@Nullable String error) {
         this.error = error;
     }
 
-    LoginResult(@Nullable LoggedInUserView success) {
+    LoginResult(@Nullable User success) {
         this.success = success;
     }
 
     @Nullable
-    LoggedInUserView getSuccess() {
+    User getSuccess() {
         return success;
     }
 
     @Nullable
-    Integer getError() {
+    String getError() {
         return error;
     }
 }
