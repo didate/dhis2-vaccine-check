@@ -10,15 +10,23 @@
             android:supportsRtl="true"
             android:theme="@style/Theme.VaccineCheck">
         <activity
-                android:name=".MainActivity"
-                android:label="@string/app_name"
-                android:theme="@style/Theme.VaccineCheck.NoActionBar">
+                android:name=".ui.login.LoginActivity"
+                android:label="@string/title_activity_login"/>
+        <activity
+                android:name=".ui.splash.SplashActivity"
+                android:configChanges="orientation|keyboardHidden|screenSize"
+                android:label="@string/title_activity_splash"
+                android:theme="@style/Theme.VaccineCheck.Fullscreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+                android:name=".MainActivity"
+                android:label="@string/app_name"
+                android:theme="@style/Theme.VaccineCheck.NoActionBar"></activity>
     </application>
 
 </manifest>
