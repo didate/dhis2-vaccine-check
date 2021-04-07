@@ -17,4 +17,13 @@
                 android:icon="@drawable/ic_menu_slideshow"
                 android:title="@string/menu_slideshow" />
     </group>
+
+    <item android:title="@string/session">
+        <menu>
+            <item
+                    android:id="@+id/navExit"
+                    android:icon="@drawable/ic_exit_to_app_black_24dp"
+                    android:title="@string/log_out" />
+        </menu>
+    </item>
 </menu>

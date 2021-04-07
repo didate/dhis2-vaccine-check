@@ -26,4 +26,7 @@
 
     <string name="prompt_server_url">Server url</string>
     <string name="prompt_username">Username</string>
+
+    <string name="session">Session</string>
+    <string name="log_out">Log out</string>
 </resources>
